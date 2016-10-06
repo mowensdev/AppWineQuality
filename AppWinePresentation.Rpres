@@ -1,0 +1,126 @@
+Portuguese "Vinho Verde" wine quality prediction App
+========================================================
+author: Massimo Forni
+date: 3rd october 2016 
+autosize: true 
+css: custom.css 
+
+Introduction
+========================================================
+This presentation describes a Shiny interactive application, "App", deployed on Rstudio's servers.
+
+The App goal is the portuguese "Vinho Verde" wine quality prediction, and is built using datasets relate to that variant of wine. 
+
+It presents these tab, described forward in the next slides:
+
+- Quality Prediction
+- Model
+- Dataset
+
+Links, where find:
+
+- the app [AppWineQuality](https://mowens.shinyapps.io/AppWineQuality) on shiny server  
+- file repository [AppWineQuality](https://github.com/mowensdev/AppWineQuality) on github with ui.R, server.R and presentation.Rpres
+
+Quality Prediction
+========================================================
+Vinho Verde is a Portuguese wine from the Minho region in the far north of the country. The name literally means "Green Wine" (red or white), referring to its youthful freshness that leads to a very slight green color on the edges of the wine.
+
+When the user launches the app three panels are shown, with the pre-selected items values:
+
+1. type of wine, related to two detasets that match the red and white variants of "Vinho Verde" wine
+
+2. the quality will be plotted with respect to one of the 11 variables selected via a drop down menu
+
+3. all the 11 predictor variables, present in the datasets, whose values can be changed by adjusting the corresponding sliders
+
+The values of the variables are summarized in a table, above which the result of the corresponding quality is indicated.
+
+The wine quality score is based on sensory data, made by wine experts, assigned grade between 0 (very bad) and 10 (very excellent).
+
+Model
+========================================================
+The prediction is based on Random Forest model, related to the variant of wine.
+To get the model every dataset, the observations (1599 for red wine and 4898 for white one) contained into them, it has been split in 80% for the training set and the rest for testing set.
+
+```{r 1, echo=FALSE, results='hide', message=FALSE}
+# Load libraries
+library(caret)
+library(randomForest)
+redW <- read.csv("./AppWinQ/Data/winequality-red.csv", header = TRUE, sep = ";")
+whiteW <- read.csv("./AppWinQ/Data/winequality-white.csv", header = TRUE, sep = ";")
+###
+### Verify red wine model accuracy
+###
+redWine <- redW
+
+# Change quality variable in factor
+redWine$quality <- as.factor(redWine$quality)
+
+# Split original dataset in 80% for training and 20% for testing
+set.seed(56789)
+splitRW <- createDataPartition(y = redWine$quality, p = 0.8, list = FALSE)
+wineRTrng <- redWine[splitRW, ]
+wineRTest <- redWine[-splitRW, ]
+```
+This is the red wine variant model obtained:
+```{r 2, echo=TRUE}
+modelredWine <- randomForest(quality ~ ., data = wineRTrng, ntree = 150)
+```
+```{r 3, echo=FALSE, results='hide', message=FALSE}
+# Get quality prediction using test dataset
+predR <- predict(modelredWine, newdata = wineRTest)
+
+# Get result
+redRes <- table(predR, wineRTest$quality)
+```
+that give this prediction:
+```{r 4, echo=FALSE, message=FALSE}
+redRes
+```
+```{r 5, echo=FALSE, results='hide', message=FALSE}
+# Get accuracy in percentuage
+redAccuracy <- round(sum(diag(redRes))/nrow(wineRTest), 3)*100
+```
+```{r 6, echo=FALSE, results='hide', message=FALSE}
+###
+### Verify white wine model accuracy
+###
+whiteWine <- whiteW
+
+# Change quality variable in factor
+whiteWine$quality <- as.factor(whiteWine$quality)
+
+# Split original dataset in 80% for training and 20% for testing
+set.seed(56789)
+splitWW <- createDataPartition(y = whiteWine$quality, p = 0.8, list = FALSE)
+wineWTrng <- whiteWine[splitWW, ]
+wineWTest <- whiteWine[-splitWW, ]
+
+# Get model for training dataset
+modelwhiteWine <- randomForest(quality ~ ., data = wineWTrng, ntree = 150)
+
+# Get quality prediction using test dataset
+predW <- predict(modelwhiteWine, newdata = wineWTest)
+
+# Get result
+whiteRes <- table(predW, wineWTest$quality)
+```
+```{r 7, echo=FALSE, results='hide', message=FALSE}
+# Get accuracy in percentuage
+whiteAccuracy <- round(sum(diag(whiteRes))/nrow(wineWTest), 3)*100
+```
+with the `r redAccuracy` % of accuracy. For the white wine variant is obtained `r whiteAccuracy` % of accuracy.
+
+Dataset
+========================================================
+The two public datasets used, containing vinho verde wine samples, available at [UCI Machine Learnig Repository](https://archive.ics.uci.edu/ml/datasets/wine+Quality)
+and created by: 
+<span style="font-style: italic">P. Cortez, A. Cerdeira, F. Almeida, T. Matos and J. Reis.
+Modeling wine preferences by data mining from physicochemical properties. In Decision Support Systems, Elsevier, 47(4):547-553, 2009.</span>
+
+There are 11 variables, based on physicochemical tests, and last one, quality, based on sensory data, made by wine experts. In relation to a specified model these are the predictor:
+
+```{r 8, echo=FALSE, message=FALSE, fig.width=5, fig.height=6}
+varImpPlot(modelredWine, pch = 19, main = "Red wine variables decrease importance", cex = 0.85)
+```
